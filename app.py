@@ -1,3 +1,4 @@
+from ai_coach import get_chatbot_response
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -6,7 +7,6 @@ import time
 import re
 from google import genai
 from google.genai import errors as genai_errors
-
 from bias_engine import run_all
 
 # ─────────────────────────────────────────────────────────────
@@ -61,10 +61,10 @@ with st.sidebar:
         st.header("3. Gemini Model")
         model_choice = st.selectbox(
             "Model",
-            ["gemini-2.0-flash-lite", "gemini-1.5-flash-8b", "gemini-1.5-flash", "gemini-2.0-flash"],
+            ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash-8b"],
             index=0,
             help="gemini-2.0-flash-lite has the most generous free-tier quota.",
-        )
+            )
 
         st.divider()
         st.caption("Required columns: `timestamp` `buy_sell` `asset` `quantity` `entry_price` `exit_price` `profit_loss` `balance`")
@@ -200,10 +200,29 @@ if page == "📊 Dashboard":
     if rt["flagged_trades"]:
         st.markdown("**Flagged Revenge Trades:**")
         st.dataframe(pd.DataFrame(rt["flagged_trades"]), use_container_width=True)
+        
+         # ← ADD THIS BLOCK HERE
+    bias_summary = f"""
+    Trading Analysis Summary:
+    - Total Trades: {len(df)}
+    - Loss/Win Ratio: {loss_ratio:.2f}x
+    - Peak Trading Hour: {peak_hour.strftime("%H:%M")}
+    - Average Win: ${avg_win:.2f}, Average Loss: ${avg_loss:.2f}
+
+    Overtrading: {"DETECTED" if ot["flagged"] else "CLEAR"}
+    Reasons: {"; ".join(ot["reasons"]) if ot["reasons"] else "None"}
+
+    Loss Aversion: {"DETECTED" if la["flagged"] else "CLEAR"}
+    Reasons: {"; ".join(la["reasons"]) if la["reasons"] else "None"}
+
+    Revenge Trading: {"DETECTED" if rt["flagged"] else "CLEAR"}
+    Reasons: {"; ".join(rt["reasons"]) if rt["reasons"] else "None"}
+    Revenge trade count: {rt["details"].get("revenge_trade_count", 0)}
+    """
 
     # ── Gemini call helper (retry + model fallback) ──────────
     def gemini_call(contents, model, max_retries=3):
-        FALLBACK = ["gemini-2.0-flash-lite", "gemini-1.5-flash-8b", "gemini-1.5-flash"]
+        FALLBACK = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash-8b"]
         to_try   = [model] + [m for m in FALLBACK if m != model]
         for current in to_try:
             for attempt in range(max_retries):
@@ -227,64 +246,35 @@ if page == "📊 Dashboard":
         return ("⚠️ All Gemini models hit their free-tier quota.\n"
                 "Wait ~1 min and retry, or add billing at https://ai.google.dev/gemini-api/docs/rate-limits")
 
-    # ── AI Trading Coach chatbot ─────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# 9. AI CHATBOT COACH (CLEAN VERSION)
+# ─────────────────────────────────────────────────────────────
     st.divider()
     st.subheader("💬 AI Trading Coach")
 
-    if client is None:
-        st.warning("Add your GEMINI_API_KEY to `.streamlit/secrets.toml` to enable the coach.")
-    else:
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+    # Display history
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-        if prompt := st.chat_input("Ask about your biases..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+    if prompt := st.chat_input("Ask about your biases..."):
+        # Add user message to history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-            bias_summary = f"""
-Trader Performance Summary:
-- Total Trades: {len(df)}
-- Date Range: {df['timestamp'].min().date()} to {df['timestamp'].max().date()}
-- Net P/L: {df['profit_loss'].sum():.2f}
-- Average Win: ${avg_win:.2f}  |  Average Loss: ${avg_loss:.2f}
-- Loss Ratio: {loss_ratio:.2f}x (target < 1.0)
-- Peak Trading Hour: {peak_hour.strftime('%H:%M')}
+        # Generate Response using our new file
+        with st.spinner("Coach is thinking..."):
+            full_response = get_chatbot_response(bias_summary, prompt)
 
-Bias Detection Results:
-1. Overtrading — {'DETECTED' if ot['flagged'] else 'CLEAR'}
-   Reasons: {'; '.join(ot['reasons']) if ot['reasons'] else 'None'}
-   Details: {ot['details']}
-
-2. Loss Aversion — {'DETECTED' if la['flagged'] else 'CLEAR'}
-   Reasons: {'; '.join(la['reasons']) if la['reasons'] else 'None'}
-   Details: {la['details']}
-
-3. Revenge Trading — {'DETECTED' if rt['flagged'] else 'CLEAR'}
-   Reasons: {'; '.join(rt['reasons']) if rt['reasons'] else 'None'}
-   Flagged trades count: {rt['details'].get('revenge_trade_count', 0)}
-"""
-
-            system_prompt = (
-                "You are a professional trading coach at National Bank. "
-                "You have access to a trader's bias analysis report. "
-                "Be empathetic, specific, and always reference the actual numbers from the report. "
-                "Give concrete, actionable advice. Never give generic tips."
-            )
-
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking…"):
-                    reply = gemini_call(
-                        contents=f"{system_prompt}\n\nBias Report:\n{bias_summary}\n\nTrader asks: {prompt}",
-                        model=model_choice,
-                    )
-                st.markdown(reply)
-
-            st.session_state.messages.append({"role": "assistant", "content": reply})
+        # Display assistant response
+        with st.chat_message("assistant"):
+            st.markdown(full_response)
+        
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 
 # ═════════════════════════════════════════════════════════════
