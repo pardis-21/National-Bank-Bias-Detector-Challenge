@@ -1,3 +1,8 @@
-.streamlit/
+# Ignore the entire streamlit settings and secrets folder for secrets.toml 
+.streamlit/secrets.toml
+
+# Ignore python cache
 __pycache__/
+
+# Ignore your data files (optional but recommended for privacy)
 *.csv
