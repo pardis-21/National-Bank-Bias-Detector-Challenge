@@ -55,10 +55,28 @@ if not uploaded_files:
     st.stop()
 
 dfs = [pd.read_csv(f) for f in uploaded_files]
-df  = pd.concat(dfs, ignore_index=True)
+df = pd.concat(dfs, ignore_index=True)
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 df = df.sort_values("timestamp").reset_index(drop=True)
 
+# --- NEW: DYNAMIC THRESHOLD CALCULATION ---
+# Calculate the average trades per hour across their whole history
+total_hours = (df['timestamp'].max() - df['timestamp'].min()).total_seconds() / 3600
+if total_hours < 1: total_hours = 1  # Prevent division by zero
+
+avg_hourly_volume = len(df) / total_hours
+# Suggest a threshold that is 2x their average (or at least 15)
+dynamic_suggestion = max(int(avg_hourly_volume * 2), 15)
+
+
+# Move this line ABOVE the sidebar block in your script
+# (After the Data Processing block)
+max_per_hour = st.sidebar.number_input(
+    "Max trades/hour (Overtrading)", 
+    min_value=1, 
+    value=dynamic_suggestion,
+    help="We've calculated this based on your average trading frequency."
+)
 # ─────────────────────────────────────────────────────────────
 # RUN BIAS ENGINE
 # ─────────────────────────────────────────────────────────────
@@ -109,9 +127,28 @@ with c1:
     st.plotly_chart(fig_pnl, use_container_width=True)
 
 with c2:
+    # 1. Resample data
     hourly_counts = df.set_index("timestamp").resample("1h").size().reset_index(name="trades")
-    fig_hourly = px.bar(hourly_counts, x="timestamp", y="trades", title="Trades Per Hour",
-                        color="trades", color_continuous_scale="RdYlGn_r")
+    
+    # 2. Find the max value in the data to set the chart limit
+    current_max = hourly_counts["trades"].max()
+    # Set the chart ceiling to either your 'max_per_hour' setting or the actual data max
+    chart_ceiling = max(current_max, int(max_per_hour), 100) 
+
+    # 3. Create the bar chart
+    fig_hourly = px.bar(
+        hourly_counts, 
+        x="timestamp", 
+        y="trades", 
+        title="Trades Per Hour",
+        color="trades", 
+        # This range_color ensures the "Red" starts at your specific threshold
+        range_color=[0, int(max_per_hour)], 
+        color_continuous_scale="RdYlGn_r",
+        # This range_y forces the chart to show space up to your ceiling
+        range_y=[0, chart_ceiling] 
+    )
+    
     st.plotly_chart(fig_hourly, use_container_width=True)
 
 # ─────────────────────────────────────────────────────────────
