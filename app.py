@@ -1,19 +1,18 @@
 import streamlit as st
 import pandas as pd
+from bias_engine import detect_overtrading  # Importing your backend logic
+from chatbot import get_ai_advice           # Importing your AI logic
 
-st.title("National Bank: AI Bias Detector for Traders Hackathon Challenge")
+st.title("National Bank Bias Detector")
 
-# 1. File Upload
-uploaded_file = st.file_uploader("Upload Trading History (CSV)", type="csv")
+# 1. UI for Uploading
+file = st.file_uploader("Upload CSV")
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    st.write("Data Loaded Successfully!")
+if file:
+    df = pd.read_csv(file)
     
-    # 2. Logic for "Revenge Trading"
-    # (Checking if a large trade follows a loss)
+    # 2. Call the Backend
+    overtrading_results = detect_overtrading(df)
     
-    # 3. AI Chatbot Sidebar
-    with st.sidebar:
-        st.header("AI Trading Coach")
-        user_input = st.text_input("Ask about your biases:")
+    # 3. Display it
+    st.write(overtrading_results)
