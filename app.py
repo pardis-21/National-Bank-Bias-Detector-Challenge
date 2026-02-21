@@ -75,7 +75,7 @@ with st.sidebar:
 # ═════════════════════════════════════════════════════════════
 if page == "📊 Dashboard":
 
-    st.title("🏦 National Bank: AI Bias Detector")
+    st.title("🏦 National Bank: Bias Detector Hackathon Challenge")
 
     # ── Load & cache data ────────────────────────────────────
     if uploaded_files:
@@ -193,9 +193,9 @@ if page == "📊 Dashboard":
         </div>
         """, unsafe_allow_html=True)
 
-    bias_card("🔄 Overtrading",     ot, "Trading too frequently — bursts within single hours, high volume vs balance, or rapid position flipping.")
-    bias_card("😰 Loss Aversion",   la, "Holding losing trades too long while cutting winners short.")
-    bias_card("😤 Revenge Trading", rt, "Opening oversized positions shortly after a loss to 'win back' money.")
+    bias_card(" Overtrading",     ot, "Trading too frequently — bursts within single hours, high volume vs balance, or rapid position flipping.")
+    bias_card(" Loss Aversion",   la, "Holding losing trades too long while cutting winners short.")
+    bias_card(" Revenge Trading", rt, "Opening oversized positions shortly after a loss to 'win back' money.")
 
     if rt["flagged_trades"]:
         st.markdown("**Flagged Revenge Trades:**")
@@ -243,14 +243,12 @@ if page == "📊 Dashboard":
                             break
                     else:
                         raise
-        return ("⚠️ All Gemini models hit their free-tier quota.\n"
+        return (" All Gemini models hit their free-tier quota.\n"
                 "Wait ~1 min and retry, or add billing at https://ai.google.dev/gemini-api/docs/rate-limits")
 
-# ─────────────────────────────────────────────────────────────
-# 9. AI CHATBOT COACH (CLEAN VERSION)
-# ─────────────────────────────────────────────────────────────
+# ── AI CHATBOT COACH ─────────────────────────────────────
     st.divider()
-    st.subheader("💬 AI Trading Coach")
+    st.subheader("AI Trading Coach")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -261,21 +259,19 @@ if page == "📊 Dashboard":
             st.markdown(msg["content"])
 
     if prompt := st.chat_input("Ask about your biases..."):
-        # Add user message to history
+        # Show user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generate Response using our new file
-        with st.spinner("Coach is thinking..."):
-            full_response = get_chatbot_response(bias_summary, prompt)
-
-        # Display assistant response
+        # Hardcoded response
         with st.chat_message("assistant"):
-            st.markdown(full_response)
-        
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+            with st.spinner("Thinking..."):
+                time.sleep(1.5)  # makes it feel natural
+            response = " Thinking... (AI coach coming soon!)"
+            st.markdown(response)
 
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
 # ═════════════════════════════════════════════════════════════
 # PAGE: LEARNING CENTRE
