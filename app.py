@@ -38,7 +38,7 @@ with st.sidebar:
 
     st.divider()
     st.header("2. Detection Thresholds")
-    max_per_hour   = st.number_input("Max trades/hour (Overtrading)",      min_value=1,   value=10)
+    max_per_hour   = st.number_input("Max trades/hour (Overtrading)",      min_value=1, max_value=500, value=100)
     max_vol_ratio  = st.number_input("Max volume/balance ratio",            min_value=0.5, value=3.0, step=0.5)
     loss_win_ratio = st.number_input("Loss/Win ratio (Loss Aversion)",      min_value=1.0, value=1.5, step=0.1)
     revenge_mult   = st.number_input("Revenge trade size multiplier",       min_value=1.1, value=1.5, step=0.1)
