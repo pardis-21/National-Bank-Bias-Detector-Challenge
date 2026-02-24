@@ -68,7 +68,7 @@ The Bias Engine analyzes your trade history. Ensure your CSV file includes these
 
 ---
 
-### Step 3: Chat with the AI Coach
+### Step 3: Chat with the AI Coach (IN PROGRESS)
 
 Interact with the AI Trading Coach at the bottom of the dashboard. Ask specific questions like:
 
